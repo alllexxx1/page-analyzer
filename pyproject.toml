@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "hexlet-code"
+version = "1.0.0"
+description = "Page Analyzer is a basic SEO checker"
+authors = ["alllexxx1 <alekkorpachyov@gmail.com>"]
+readme = "README.md"
+repository = "https://github.com/alllexxx1/python-project-50.git"
+classifiers = [
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Software Development :: Libraries :: Python Modules"
+]
+
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

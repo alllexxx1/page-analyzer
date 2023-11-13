@@ -10,7 +10,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules"
 ]
 packages = [
-	{ include = "page_analyzer" },
+	{ include = "page_analyzer" }
 ]
 
 

@@ -20,6 +20,10 @@ flask = "^3.0.0"
 gunicorn = "^21.2.0"
 
 
+[tool.poetry.group.dev.dependencies]
+flake8 = "^6.1.0"
+python-dotenv = "^1.0.0"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

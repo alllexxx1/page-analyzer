@@ -13,6 +13,9 @@ package-install:
 package-reinstall:
 	python3 -m pip install --user dist/*.whl --force-reinstall
 
+lint:
+	poetry run flake8
+
 dev:
 	poetry run flask --app page_analyzer:app run
 

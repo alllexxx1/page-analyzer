@@ -2,3 +2,6 @@
 dist/
 __pycache__/
 .idea/
+.env
+draft.py
+main_page_old_v.html

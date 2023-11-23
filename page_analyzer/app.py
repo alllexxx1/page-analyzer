@@ -21,7 +21,6 @@ load_dotenv()
 app.secret_key = os.environ.get('SECRET_KEY')
 
 DATABASE_URL = os.getenv('DATABASE_URL')
-conn = psycopg2.connect(DATABASE_URL)
 
 
 @app.route('/', methods=['GET'])
@@ -57,10 +56,13 @@ def post_url():
             messages=messages
         ), 422
 
+    conn = psycopg2.connect(DATABASE_URL)
     with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
         cur.execute('SELECT name, id FROM urls WHERE name=%s',
                     (normalized_url,))
         url_data = cur.fetchone()
+    conn.close()
+
     if url_data:
         id_ = url_data.id
         flash('Страница уже существует', 'info')
@@ -68,6 +70,7 @@ def post_url():
             url_for('get_url', id=id_), code=302
         )
 
+    conn = psycopg2.connect(DATABASE_URL)
     with conn.cursor() as cur:
         cur.execute("""
             INSERT INTO urls (name, created_at)
@@ -77,6 +80,7 @@ def post_url():
         cur.execute('SELECT id FROM urls WHERE name=%s', (normalized_url,))
         id_ = cur.fetchone()[0]
     conn.commit()
+    conn.close()
 
     flash('Страница успешно добавлена', 'success')
     return redirect(
@@ -86,9 +90,11 @@ def post_url():
 
 @app.route('/urls', methods=['GET'])
 def get_urls():
+    conn = psycopg2.connect(DATABASE_URL)
     with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
         cur.execute('SELECT * FROM urls ORDER BY id DESC')
         urls_data = cur.fetchall()
+    conn.close()
 
     return render_template(
         'index.html',
@@ -98,9 +104,11 @@ def get_urls():
 
 @app.route('/urls/<id>', methods=['GET'])
 def get_url(id):
+    conn = psycopg2.connect(DATABASE_URL)
     with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
         cur.execute('SELECT * FROM urls WHERE id=%s', (id,))
         url_data = cur.fetchone()
+    conn.close()
 
     messages = get_flashed_messages(with_categories=True)
     return render_template(

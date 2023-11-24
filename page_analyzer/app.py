@@ -35,23 +35,16 @@ def new_url():
 @app.route('/urls', methods=['POST'])
 def post_url():
     input_url = request.form.get('url')
+
     if not input_url:
         flash('URL обязателен', 'error')
         messages = get_flashed_messages(with_categories=True)
-        return render_template(
-            'main_page.html',
-            url=input_url,
-            messages=messages
-        ), 422
+        return render_template_with_error_flash(input_url, messages)
 
     if len(input_url) > 255:
         flash('URL превышает 255 символов', 'error')
         messages = get_flashed_messages(with_categories=True)
-        return render_template(
-            'main_page.html',
-            url=input_url,
-            messages=messages
-        ), 422
+        return render_template_with_error_flash(input_url, messages)
 
     url = urlparse(input_url)
     normalized_url = f'{url.scheme}://{url.hostname}'
@@ -59,11 +52,7 @@ def post_url():
     if not validated_url:
         flash('Некорректный URL', 'error')
         messages = get_flashed_messages(with_categories=True)
-        return render_template(
-            'main_page.html',
-            url=input_url,
-            messages=messages
-        ), 422
+        return render_template_with_error_flash(input_url, messages)
 
     conn = psycopg2.connect(DATABASE_URL)
     with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
@@ -125,3 +114,11 @@ def get_url(id):
         url=url_data,
         messages=messages
     )
+
+
+def render_template_with_error_flash(url, messages):
+    return render_template(
+        'main_page.html',
+        url=url,
+        messages=messages
+    ), 422

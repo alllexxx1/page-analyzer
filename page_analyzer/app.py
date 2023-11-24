@@ -44,6 +44,15 @@ def post_url():
             messages=messages
         ), 422
 
+    if len(input_url) > 255:
+        flash('URL превышает 255 символов', 'error')
+        messages = get_flashed_messages(with_categories=True)
+        return render_template(
+            'main_page.html',
+            url=input_url,
+            messages=messages
+        ), 422
+
     url = urlparse(input_url)
     normalized_url = f'{url.scheme}://{url.hostname}'
     validated_url = validators.url(normalized_url)

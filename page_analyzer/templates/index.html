@@ -7,26 +7,22 @@
     <div class="table-responsive">
       <table class="table table-bordered table-hover text-nowrap" data-test="urls">
         <thead>
-        <tr>
-          <th>ID</th>
-          <th>Имя</th>
-          <th>Последняя проверка</th>
-          <th>Код ответа</th>
-        </tr>
+          <tr>
+            <th>ID</th>
+            <th>Имя</th>
+            <th>Последняя проверка</th>
+            <th>Код ответа</th>
+          </tr>
         </thead>
         <tbody>
           {% for url in urls %}
           <tr>
             <td>{{ url.id }}</td>
-            <td>
-              <a href="{{ url_for('get_url', id=url.id) }}">
-                {{ url.name }}
-              </a>
-            </td>
+            <td><a href="{{ url_for('get_url', id=url.id) }}">{{ url.name }}</a></td>
+            <td>{{ url.check_created_at or ''}}</td>
             <td></td>
-            <td></td>
-          {% endfor %}
           </tr>
+          {% endfor %}
         </tbody>
       </table>
     </div>

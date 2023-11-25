@@ -75,9 +75,13 @@ def post_url():
             VALUES (%s, %s);
             """,
                     (normalized_url, date.today()))
+    conn.commit()
+    conn.close()
+
+    conn = psycopg2.connect(DATABASE_URL)
+    with conn.cursor() as cur:
         cur.execute('SELECT id FROM urls WHERE name=%s', (normalized_url,))
         id_ = cur.fetchone()[0]
-    conn.commit()
     conn.close()
 
     flash('Страница успешно добавлена', 'success')
@@ -90,7 +94,15 @@ def post_url():
 def get_urls():
     conn = psycopg2.connect(DATABASE_URL)
     with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
-        cur.execute('SELECT * FROM urls ORDER BY id DESC')
+        cur.execute('''
+            SELECT DISTINCT ON (urls.id)
+                urls.id,
+                urls.name,
+                url_checks.created_at as check_created_at
+            FROM urls
+            LEFT JOIN url_checks ON urls.id = url_checks.url_id
+            ORDER BY urls.id DESC, check_created_at DESC
+        ''')
         urls_data = cur.fetchall()
     conn.close()
 
@@ -98,6 +110,20 @@ def get_urls():
         'index.html',
         urls=urls_data
     )
+
+
+# @app.route('/urls', methods=['GET'])
+# def get_urls():
+#     conn = psycopg2.connect(DATABASE_URL)
+#     with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
+#         cur.execute('SELECT * FROM urls ORDER BY id DESC')
+#         urls_data = cur.fetchall()
+#     conn.close()
+#
+#     return render_template(
+#         'index.html',
+#         urls=urls_data
+#     )
 
 
 @app.route('/urls/<id>', methods=['GET'])
@@ -108,11 +134,39 @@ def get_url(id):
         url_data = cur.fetchone()
     conn.close()
 
+    conn = psycopg2.connect(DATABASE_URL)
+    with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
+        cur.execute('''
+            SELECT id, created_at
+            FROM url_checks WHERE url_id=%s
+            ORDER BY id DESC''', (id,))
+        checks = cur.fetchall()
+    conn.close()
+
     messages = get_flashed_messages(with_categories=True)
     return render_template(
         'show.html',
         url=url_data,
+        checks=checks,
         messages=messages
+    )
+
+
+@app.route('/urls/<id>/checks', methods=['POST'])
+def check_url(id):
+    conn = psycopg2.connect(DATABASE_URL)
+    with conn.cursor() as cur:
+        cur.execute("""
+               INSERT INTO url_checks (url_id, created_at)
+               VALUES (%s, %s);
+               """,
+                    (id, date.today()))
+    conn.commit()
+    conn.close()
+
+    flash('Страница успешно проверена', 'success')
+    return redirect(
+        url_for('get_url', id=id), code=302
     )
 
 

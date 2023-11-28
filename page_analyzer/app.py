@@ -132,6 +132,14 @@ def get_urls():
 @app.route('/urls/<id>', methods=['GET'])
 def get_url(id):
     conn = psycopg2.connect(DATABASE_URL)
+    with conn.cursor() as cur:
+        cur.execute('SELECT id FROM urls WHERE id=%s', (id,))
+        id_ = cur.fetchone()
+    conn.close()
+    if not id_:
+        return render_template('not_found.html'), 404
+
+    conn = psycopg2.connect(DATABASE_URL)
     with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
         cur.execute('SELECT * FROM urls WHERE id=%s', (id,))
         url_data = cur.fetchone()

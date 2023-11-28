@@ -16,7 +16,6 @@ import validators
 from datetime import date
 import requests
 
-
 app = Flask(__name__)
 
 load_dotenv()
@@ -96,37 +95,40 @@ def post_url():
 def get_urls():
     conn = psycopg2.connect(DATABASE_URL)
     with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
-        cur.execute('''
-            SELECT DISTINCT ON (urls.id)
-                urls.id,
-                urls.name,
-                url_checks.created_at as check_created_at,
-                url_checks.status_code
-            FROM urls
-            LEFT JOIN url_checks ON urls.id = url_checks.url_id
-            ORDER BY urls.id DESC, check_created_at DESC
-        ''')
+        cur.execute('SELECT id, name FROM urls ORDER BY id DESC')
         urls_data = cur.fetchall()
     conn.close()
 
+    conn = psycopg2.connect(DATABASE_URL)
+    with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
+        latest_checks = {}
+        cur.execute('''
+            SELECT url_id, MAX(created_at) AS latest_created_at, status_code
+            FROM url_checks
+            GROUP BY url_id, status_code
+            ORDER BY url_id DESC''')
+        for row in cur.fetchall():
+            latest_checks[row.url_id] = {
+                'latest_created_at': row.latest_created_at,
+                'status_code': row.status_code
+            }
+    conn.close()
+
+    result_data = []
+    for url in urls_data:
+        latest_check_data = latest_checks.get(url.id, None)
+        result_data.append({
+            'id': url.id,
+            'name': url.name,
+            'check_created_at': latest_check_data['latest_created_at']
+            if latest_check_data else None,
+            'status_code': latest_check_data['status_code']
+            if latest_check_data else None
+        })
     return render_template(
         'index.html',
-        urls=urls_data
+        urls=result_data
     )
-
-
-# @app.route('/urls', methods=['GET'])
-# def get_urls():
-#     conn = psycopg2.connect(DATABASE_URL)
-#     with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
-#         cur.execute('SELECT * FROM urls ORDER BY id DESC')
-#         urls_data = cur.fetchall()
-#     conn.close()
-#
-#     return render_template(
-#         'index.html',
-#         urls=urls_data
-#     )
 
 
 @app.route('/urls/<id>', methods=['GET'])
@@ -193,17 +195,6 @@ def check_url(id):
     except requests.RequestException:
         flash('Произошла ошибка при проверке', 'error')
 
-    # conn = psycopg2.connect(DATABASE_URL)
-    # with conn.cursor() as cur:
-    #     cur.execute("""
-    #            INSERT INTO url_checks (url_id, created_at)
-    #            VALUES (%s, %s);
-    #            """,
-    #                 (id, date.today()))
-    # conn.commit()
-    # conn.close()
-    #
-    # flash('Страница успешно проверена', 'success')
     return redirect(
         url_for('get_url', id=id), code=302
     )

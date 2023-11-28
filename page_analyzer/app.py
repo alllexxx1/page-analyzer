@@ -201,6 +201,11 @@ def check_url(id):
     )
 
 
+@app.errorhandler(404)
+def not_found(error):
+    return render_template('not_found.html'), 404
+
+
 def render_template_with_error_flash(url, messages):
     return render_template(
         'main_page.html',

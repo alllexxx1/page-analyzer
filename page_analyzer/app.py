@@ -14,6 +14,8 @@ from dotenv import load_dotenv
 from urllib.parse import urlparse
 import validators
 from datetime import date
+import requests
+
 
 app = Flask(__name__)
 
@@ -79,9 +81,9 @@ def post_url():
     conn.close()
 
     conn = psycopg2.connect(DATABASE_URL)
-    with conn.cursor() as cur:
+    with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
         cur.execute('SELECT id FROM urls WHERE name=%s', (normalized_url,))
-        id_ = cur.fetchone()[0]
+        id_ = cur.fetchone().id
     conn.close()
 
     flash('Страница успешно добавлена', 'success')
@@ -98,7 +100,8 @@ def get_urls():
             SELECT DISTINCT ON (urls.id)
                 urls.id,
                 urls.name,
-                url_checks.created_at as check_created_at
+                url_checks.created_at as check_created_at,
+                url_checks.status_code
             FROM urls
             LEFT JOIN url_checks ON urls.id = url_checks.url_id
             ORDER BY urls.id DESC, check_created_at DESC
@@ -137,7 +140,7 @@ def get_url(id):
     conn = psycopg2.connect(DATABASE_URL)
     with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
         cur.execute('''
-            SELECT id, created_at
+            SELECT id, status_code, created_at
             FROM url_checks WHERE url_id=%s
             ORDER BY id DESC''', (id,))
         checks = cur.fetchall()
@@ -155,16 +158,44 @@ def get_url(id):
 @app.route('/urls/<id>/checks', methods=['POST'])
 def check_url(id):
     conn = psycopg2.connect(DATABASE_URL)
-    with conn.cursor() as cur:
-        cur.execute("""
-               INSERT INTO url_checks (url_id, created_at)
-               VALUES (%s, %s);
-               """,
-                    (id, date.today()))
-    conn.commit()
+    with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
+        cur.execute('SELECT name FROM urls WHERE id=%s', (id,))
+        url = cur.fetchone().name
     conn.close()
 
-    flash('Страница успешно проверена', 'success')
+    try:
+        response = requests.get(url)
+        status_code = response.status_code
+
+        if status_code == 200:
+            conn = psycopg2.connect(DATABASE_URL)
+            with conn.cursor() as cur:
+                cur.execute("""
+                       INSERT INTO url_checks (status_code, url_id, created_at)
+                       VALUES (%s, %s, %s);
+                       """,
+                            (status_code, id, date.today()))
+            conn.commit()
+            conn.close()
+            flash('Страница успешно проверена', 'success')
+
+        else:
+            flash('Произошла ошибка при проверке', 'error')
+
+    except requests.RequestException:
+        flash('Произошла ошибка при проверке', 'error')
+
+    # conn = psycopg2.connect(DATABASE_URL)
+    # with conn.cursor() as cur:
+    #     cur.execute("""
+    #            INSERT INTO url_checks (url_id, created_at)
+    #            VALUES (%s, %s);
+    #            """,
+    #                 (id, date.today()))
+    # conn.commit()
+    # conn.close()
+    #
+    # flash('Страница успешно проверена', 'success')
     return redirect(
         url_for('get_url', id=id), code=302
     )

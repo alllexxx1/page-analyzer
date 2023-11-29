@@ -15,6 +15,8 @@ from urllib.parse import urlparse
 import validators
 from datetime import date
 import requests
+from bs4 import BeautifulSoup
+
 
 app = Flask(__name__)
 
@@ -150,7 +152,7 @@ def get_url(id):
     conn = psycopg2.connect(DATABASE_URL)
     with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
         cur.execute('''
-            SELECT id, status_code, created_at
+            SELECT *
             FROM url_checks WHERE url_id=%s
             ORDER BY id DESC''', (id,))
         checks = cur.fetchall()
@@ -178,13 +180,20 @@ def check_url(id):
         status_code = response.status_code
 
         if status_code == 200:
+            site_data = get_seo_info(response)
+
             conn = psycopg2.connect(DATABASE_URL)
             with conn.cursor() as cur:
                 cur.execute("""
-                       INSERT INTO url_checks (status_code, url_id, created_at)
-                       VALUES (%s, %s, %s);
+                       INSERT INTO url_checks (url_id, status_code, h1,
+                       title, description, created_at)
+                       VALUES (%s, %s, %s, %s, %s, %s);
                        """,
-                            (status_code, id, date.today()))
+                            (id, status_code,
+                             site_data['h1'],
+                             site_data['title'],
+                             site_data['description'],
+                             date.today()))
             conn.commit()
             conn.close()
             flash('Страница успешно проверена', 'success')
@@ -211,3 +220,26 @@ def render_template_with_error_flash(url, messages):
         url=url,
         messages=messages
     ), 422
+
+
+def get_seo_info(web_page):
+    soup = BeautifulSoup(web_page.text, 'html.parser')
+    site_data = {}
+
+    if soup.h1:
+        site_data['h1'] = soup.h1.text
+    else:
+        site_data['h1'] = ''
+
+    if soup.title:
+        site_data['title'] = soup.title.text
+    else:
+        site_data['title'] = ''
+
+    if soup.find('meta', attrs={'name': 'description'}):
+        site_data['description'] = (
+            soup.find('meta', attrs={'name': 'description'}).get('content'))
+    else:
+        site_data['description'] = ''
+
+    return site_data

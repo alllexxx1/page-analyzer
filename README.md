@@ -16,6 +16,22 @@
 
 ---
 
+#### Downloading the project
+```
+$ git clone git@github.com:alllexxx1/python-project-83.git
+$ cd python-project-83
+$ make build
+```
+#### Configuring and launching the application
+
+```
+Create a ".env" file in the root and add SECRET_KEY and DATABASE_URL variables to it
+
+$ make dev
+$ make start
+```
+---
+
 ### Links
 
 This project was built using these tools:

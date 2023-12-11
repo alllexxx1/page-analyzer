@@ -42,7 +42,7 @@ def post_url():
             'index.html',
             url=input_url,
             messages=messages
-        )
+        ), 422
 
     normalized_url = normalize_url(input_url)
 

@@ -1,20 +1,24 @@
 from flask import (
     Flask, render_template, redirect,
-    request, url_for, flash, get_flashed_messages
+    request, url_for, flash,
+    get_flashed_messages, abort
 )
 import os
 from dotenv import load_dotenv
 import requests
 from page_analyzer import db
 from page_analyzer import parser
-from page_analyzer.utils import (validate_and_normalize_url,
-                                 render_template_with_error_flash)
+from page_analyzer.utils import (
+    prepare_flash_message,
+    normalize_url
+)
 
 
 app = Flask(__name__)
 
 load_dotenv()
 app.secret_key = os.environ.get('SECRET_KEY')
+DATABASE_URL = os.getenv('DATABASE_URL')
 
 
 @app.route('/', methods=['GET'])
@@ -30,19 +34,30 @@ def new_url():
 def post_url():
     input_url = request.form.get('url')
 
-    normalized_url = validate_and_normalize_url(input_url)
-
-    if normalized_url is None:
+    flash_message = prepare_flash_message(input_url)
+    if flash_message:
+        flash(flash_message, 'error')
         messages = get_flashed_messages(with_categories=True)
-        return render_template_with_error_flash(input_url, messages)
+        return render_template(
+            'index.html',
+            url=input_url,
+            messages=messages
+        )
 
-    url_id = db.get_url_id_by_name(normalized_url)
+    normalized_url = normalize_url(input_url)
 
+    conn = db.create_connection(DATABASE_URL)
+    url_data = db.get_url_by_name(conn, normalized_url)
+    db.close_connection(conn)
+
+    url_id = url_data.id if url_data else None
     if url_id:
         flash('Страница уже существует', 'info')
     else:
-        db.add_url(normalized_url)
-        url_id = db.get_url_id_by_name(normalized_url)
+        conn = db.create_connection(DATABASE_URL)
+        url_id = db.add_url(conn, normalized_url)
+        db.close_connection(conn)
+
         flash('Страница успешно добавлена', 'success')
     return redirect(
         url_for('get_url', id=url_id), code=302
@@ -51,8 +66,13 @@ def post_url():
 
 @app.route('/urls', methods=['GET'])
 def get_urls():
-    urls_data = db.get_urls_by_desc()
-    latest_checks = db.get_checks_by_desc()
+    conn = db.create_connection(DATABASE_URL)
+    urls_data = db.get_urls(conn)
+    db.close_connection(conn)
+
+    conn = db.create_connection(DATABASE_URL)
+    latest_checks = db.get_checks(conn)
+    db.close_connection(conn)
 
     result_data = []
     for url in urls_data:
@@ -73,12 +93,15 @@ def get_urls():
 
 @app.route('/urls/<int:id>', methods=['GET'])
 def get_url(id):
-    url_id = db.get_url_id_by_id(id)
-    if not url_id:
-        return render_template('errors/404.html'), 404
+    conn = db.create_connection(DATABASE_URL)
+    url_data = db.get_url(conn, id)
+    db.close_connection(conn)
+    if not url_data:
+        abort(404)
 
-    url_data = db.get_url_data(id)
-    checks = db.get_checks_data_by_desc(id)
+    conn = db.create_connection(DATABASE_URL)
+    checks = db.get_check(conn, id)
+    db.close_connection(conn)
 
     messages = get_flashed_messages(with_categories=True)
     return render_template(
@@ -91,7 +114,9 @@ def get_url(id):
 
 @app.route('/urls/<id>/checks', methods=['POST'])
 def check_url(id):
-    url = db.get_url_name_by_id(id)
+    conn = db.create_connection(DATABASE_URL)
+    url = db.get_url(conn, id).name
+    db.close_connection(conn)
 
     try:
         response = requests.get(url)
@@ -99,7 +124,9 @@ def check_url(id):
 
         if status_code == 200:
             site_data = parser.get_seo_info(response)
-            db.add_check(id, status_code, site_data)
+            conn = db.create_connection(DATABASE_URL)
+            db.add_check(conn, id, status_code, site_data)
+            db.close_connection(conn)
             flash('Страница успешно проверена', 'success')
 
         else:

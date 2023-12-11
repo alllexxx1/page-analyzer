@@ -3,18 +3,10 @@ from bs4 import BeautifulSoup
 
 def get_seo_info(web_page):
     soup = BeautifulSoup(web_page.text, 'html.parser')
-    site_data = {}
+    site_data = dict()
 
-    if soup.h1:
-        site_data['h1'] = soup.h1.text
-    else:
-        site_data['h1'] = ''
-
-    if soup.title:
-        site_data['title'] = soup.title.text
-    else:
-        site_data['title'] = ''
-
+    site_data['h1'] = soup.h1.text if soup.h1 else ''
+    site_data['title'] = soup.title.text if soup.title else ''
     if soup.find('meta', attrs={'name': 'description'}):
         site_data['description'] = (
             soup.find('meta', attrs={'name': 'description'}).get('content'))

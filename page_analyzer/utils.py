@@ -1,31 +1,30 @@
-from flask import render_template, flash
 from urllib.parse import urlparse
 import validators
 
 
-def validate_and_normalize_url(input_url):
-    if not input_url:
-        flash('URL обязателен', 'error')
-        return None
+MAX_LEN_URL = 255
 
-    if len(input_url) > 255:
-        flash('URL превышает 255 символов', 'error')
-        return None
 
+def normalize_url(input_url):
     url = urlparse(input_url)
     normalized_url = f'{url.scheme}://{url.hostname}'
-    validated_url = validators.url(normalized_url)
-
-    if not validated_url:
-        flash('Некорректный URL', 'error')
-        return None
-
     return normalized_url
 
 
-def render_template_with_error_flash(url, messages):
-    return render_template(
-        'index.html',
-        url=url,
-        messages=messages
-    ), 422
+def validate_url(input_url):
+    return validators.url(input_url)
+
+
+def check_url_length(input_url):
+    return len(input_url) < MAX_LEN_URL
+
+
+def prepare_flash_message(input_url):
+    if not input_url:
+        return 'URL обязателен'
+
+    if not check_url_length(input_url):
+        return 'URL превышает 255 символов'
+
+    if not validate_url(input_url):
+        return 'Некорректный URL'

@@ -11,7 +11,7 @@ def normalize_url(input_url):
     return normalized_url
 
 
-def validate_url(input_url):
+def verify_url(input_url):
     return validators.url(input_url)
 
 
@@ -19,12 +19,12 @@ def check_url_length(input_url):
     return len(input_url) < MAX_LEN_URL
 
 
-def prepare_flash_message(input_url):
+def validate_url(input_url):
+    errors = []
     if not input_url:
-        return 'URL обязателен'
-
+        errors.append(('URL обязателен', 'error'))
     if not check_url_length(input_url):
-        return 'URL превышает 255 символов'
-
-    if not validate_url(input_url):
-        return 'Некорректный URL'
+        errors.append(('URL превышает 255 символов', 'error'))
+    if not verify_url(input_url):
+        errors.append(('Некорректный URL', 'error'))
+    return errors

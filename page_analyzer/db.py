@@ -15,8 +15,8 @@ def get_url_by_name(conn, normalized_url):
     with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
         cur.execute('SELECT name, id FROM urls WHERE name=%s',
                     (normalized_url,))
-        url_data = cur.fetchone()
-    return url_data
+        url = cur.fetchone()
+    return url
 
 
 def add_url(conn, normalized_url):
@@ -31,15 +31,11 @@ def add_url(conn, normalized_url):
     return url_id
 
 
-def get_urls(conn):
+def get_urls_with_checks(conn):
     with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
         cur.execute('SELECT id, name FROM urls ORDER BY id DESC')
-        urls_data = cur.fetchall()
-    return urls_data
+        urls = cur.fetchall()
 
-
-def get_checks(conn):
-    with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
         latest_checks = {}
         cur.execute('''
             SELECT url_id, MAX(created_at) AS latest_created_at, status_code
@@ -51,14 +47,26 @@ def get_checks(conn):
                 'latest_created_at': row.latest_created_at,
                 'status_code': row.status_code
             }
-    return latest_checks
+
+    result_data = []
+    for url in urls:
+        latest_check_data = latest_checks.get(url.id, None)
+        result_data.append({
+            'id': url.id,
+            'name': url.name,
+            'check_created_at': latest_check_data['latest_created_at']
+            if latest_check_data else None,
+            'status_code': latest_check_data['status_code']
+            if latest_check_data else None
+        })
+    return result_data
 
 
 def get_url(conn, id):
     with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
         cur.execute('SELECT * FROM urls WHERE id=%s', (id,))
-        url_data = cur.fetchone()
-    return url_data
+        url = cur.fetchone()
+    return url
 
 
 def get_check(conn, id):

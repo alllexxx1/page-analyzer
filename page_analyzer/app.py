@@ -9,7 +9,7 @@ import requests
 from page_analyzer import db
 from page_analyzer import parser
 from page_analyzer.utils import (
-    prepare_flash_message,
+    validate_url,
     normalize_url
 )
 
@@ -34,9 +34,10 @@ def new_url():
 def post_url():
     input_url = request.form.get('url')
 
-    flash_message = prepare_flash_message(input_url)
+    flash_message = validate_url(input_url)
     if flash_message:
-        flash(flash_message, 'error')
+        error_message, error_type = flash_message[0]
+        flash(error_message, error_type)
         messages = get_flashed_messages(with_categories=True)
         return render_template(
             'index.html',
@@ -47,18 +48,16 @@ def post_url():
     normalized_url = normalize_url(input_url)
 
     conn = db.create_connection(DATABASE_URL)
-    url_data = db.get_url_by_name(conn, normalized_url)
-    db.close_connection(conn)
+    url = db.get_url_by_name(conn, normalized_url)
 
-    url_id = url_data.id if url_data else None
+    url_id = url.id if url else None
     if url_id:
         flash('Страница уже существует', 'info')
     else:
-        conn = db.create_connection(DATABASE_URL)
         url_id = db.add_url(conn, normalized_url)
-        db.close_connection(conn)
-
         flash('Страница успешно добавлена', 'success')
+
+    db.close_connection(conn)
     return redirect(
         url_for('get_url', id=url_id), code=302
     )
@@ -67,24 +66,9 @@ def post_url():
 @app.route('/urls', methods=['GET'])
 def get_urls():
     conn = db.create_connection(DATABASE_URL)
-    urls_data = db.get_urls(conn)
+    result_data = db.get_urls_with_checks(conn)
     db.close_connection(conn)
 
-    conn = db.create_connection(DATABASE_URL)
-    latest_checks = db.get_checks(conn)
-    db.close_connection(conn)
-
-    result_data = []
-    for url in urls_data:
-        latest_check_data = latest_checks.get(url.id, None)
-        result_data.append({
-            'id': url.id,
-            'name': url.name,
-            'check_created_at': latest_check_data['latest_created_at']
-            if latest_check_data else None,
-            'status_code': latest_check_data['status_code']
-            if latest_check_data else None
-        })
     return render_template(
         'urls.html',
         urls=result_data
@@ -95,11 +79,9 @@ def get_urls():
 def get_url(id):
     conn = db.create_connection(DATABASE_URL)
     url_data = db.get_url(conn, id)
-    db.close_connection(conn)
     if not url_data:
         abort(404)
 
-    conn = db.create_connection(DATABASE_URL)
     checks = db.get_check(conn, id)
     db.close_connection(conn)
 
@@ -116,7 +98,6 @@ def get_url(id):
 def check_url(id):
     conn = db.create_connection(DATABASE_URL)
     url = db.get_url(conn, id).name
-    db.close_connection(conn)
 
     try:
         response = requests.get(url)
@@ -124,9 +105,7 @@ def check_url(id):
 
         if status_code == 200:
             site_data = parser.get_seo_info(response)
-            conn = db.create_connection(DATABASE_URL)
             db.add_check(conn, id, status_code, site_data)
-            db.close_connection(conn)
             flash('Страница успешно проверена', 'success')
 
         else:
@@ -135,6 +114,7 @@ def check_url(id):
     except requests.RequestException:
         flash('Произошла ошибка при проверке', 'error')
 
+    db.close_connection(conn)
     return redirect(
         url_for('get_url', id=id), code=302
     )

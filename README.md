@@ -5,7 +5,7 @@
 
 ---
 
-###  [Page Analyzer](https://page-analyzer-gc22.onrender.com/) is a web tool for checking the SEO support and analyzing HTML tags of a given URL
+###  [Page Analyzer](https://page-analyzer-gc22.onrender.com/) is a web tool for checking the SEO performance and analyzing HTML tags of a given URL
 
 
 ### Some project screenshots: 

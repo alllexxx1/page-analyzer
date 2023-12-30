@@ -69,7 +69,7 @@ def get_url(conn, id):
     return url
 
 
-def get_check(conn, id):
+def get_checks(conn, id):
     with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
         cur.execute('''
             SELECT *

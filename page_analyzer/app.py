@@ -22,11 +22,10 @@ DATABASE_URL = os.getenv('DATABASE_URL')
 
 
 @app.route('/', methods=['GET'])
-def new_url():
-    url = ''
+def index():
     return render_template(
         'index.html',
-        url=url
+        url=''
     )
 
 
@@ -34,15 +33,14 @@ def new_url():
 def post_url():
     input_url = request.form.get('url')
 
-    flash_message = validate_url(input_url)
-    if flash_message:
-        error_message, error_type = flash_message[0]
+    messages = validate_url(input_url)
+    if messages:
+        error_message, error_type = messages[0]
         flash(error_message, error_type)
-        messages = get_flashed_messages(with_categories=True)
         return render_template(
             'index.html',
             url=input_url,
-            messages=messages
+            messages=get_flashed_messages(with_categories=True)
         ), 422
 
     normalized_url = normalize_url(input_url)
@@ -66,50 +64,45 @@ def post_url():
 @app.route('/urls', methods=['GET'])
 def get_urls():
     conn = db.create_connection(DATABASE_URL)
-    result_data = db.get_urls_with_checks(conn)
+    urls_with_checks = db.get_urls_with_checks(conn)
     db.close_connection(conn)
 
     return render_template(
         'urls.html',
-        urls=result_data
+        urls=urls_with_checks
     )
 
 
 @app.route('/urls/<int:id>', methods=['GET'])
 def get_url(id):
     conn = db.create_connection(DATABASE_URL)
-    url_data = db.get_url(conn, id)
-    if not url_data:
+    url = db.get_url(conn, id)
+    if not url:
         abort(404)
 
-    checks = db.get_check(conn, id)
+    checks = db.get_checks(conn, id)
     db.close_connection(conn)
 
-    messages = get_flashed_messages(with_categories=True)
     return render_template(
         'url.html',
-        url=url_data,
+        url=url,
         checks=checks,
-        messages=messages
+        messages=get_flashed_messages(with_categories=True)
     )
 
 
 @app.route('/urls/<id>/checks', methods=['POST'])
 def check_url(id):
     conn = db.create_connection(DATABASE_URL)
-    url = db.get_url(conn, id).name
+    url = db.get_url(conn, id)
 
     try:
-        response = requests.get(url)
+        response = requests.get(url.name)
+        response.raise_for_status()
         status_code = response.status_code
-
-        if status_code == 200:
-            site_data = parser.get_seo_info(response)
-            db.add_check(conn, id, status_code, site_data)
-            flash('Страница успешно проверена', 'success')
-
-        else:
-            flash('Произошла ошибка при проверке', 'error')
+        site_data = parser.get_seo_info(response)
+        db.add_check(conn, id, status_code, site_data)
+        flash('Страница успешно проверена', 'success')
 
     except requests.RequestException:
         flash('Произошла ошибка при проверке', 'error')

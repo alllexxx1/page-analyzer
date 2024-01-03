@@ -48,10 +48,10 @@ def get_urls_with_checks(conn):
                 'status_code': row.status_code
             }
 
-    result_data = []
+    urls_with_checks = []
     for url in urls:
         latest_check_data = latest_checks.get(url.id, None)
-        result_data.append({
+        urls_with_checks.append({
             'id': url.id,
             'name': url.name,
             'check_created_at': latest_check_data['latest_created_at']
@@ -59,7 +59,7 @@ def get_urls_with_checks(conn):
             'status_code': latest_check_data['status_code']
             if latest_check_data else None
         })
-    return result_data
+    return urls_with_checks
 
 
 def get_url(conn, id):

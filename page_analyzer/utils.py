@@ -20,11 +20,13 @@ def check_url_length(input_url):
 
 
 def validate_url(input_url):
-    errors = []
     if not input_url:
-        errors.append(('URL обязателен', 'error'))
+        return [('URL обязателен', 'error')]
+
+    errors = []
     if not check_url_length(input_url):
         errors.append(('URL превышает 255 символов', 'error'))
     if not verify_url(input_url):
         errors.append(('Некорректный URL', 'error'))
+
     return errors

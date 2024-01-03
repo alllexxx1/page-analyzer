@@ -35,8 +35,8 @@ def post_url():
 
     messages = validate_url(input_url)
     if messages:
-        error_message, error_type = messages[0]
-        flash(error_message, error_type)
+        for message, message_type in messages:
+            flash(message, message_type)
         return render_template(
             'index.html',
             url=input_url,
